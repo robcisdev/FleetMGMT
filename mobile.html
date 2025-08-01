@@ -1,0 +1,2370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>blauLabs - Centro de Mantenimiento IoT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'blau-primary': '#1e293b',
+                        'blau-dark': '#0f172a',
+                        'blau-accent': '#5D5CDE'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .workshop-card {
+            transition: all 0.3s ease;
+        }
+        .workshop-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .calendar-day {
+            min-height: 50px;
+            transition: all 0.2s ease;
+        }
+        .calendar-day:hover {
+            background-color: rgba(93, 92, 222, 0.1);
+        }
+        .calendar-day.selected {
+            background-color: #5D5CDE;
+            color: white;
+        }
+        .form-radio:checked {
+            background-color: #5D5CDE;
+            border-color: #5D5CDE;
+        }
+        .form-checkbox:checked {
+            background-color: #5D5CDE;
+            border-color: #5D5CDE;
+        }
+        input, textarea, select {
+            font-size: 16px !important; /* Prevent zoom on iOS */
+        }
+        .camera-preview {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        .photo-thumbnail {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            cursor: pointer;
+        }
+        .photo-thumbnail:hover {
+            border-color: #5D5CDE;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 font-sans">
+    <!-- Mobile Header -->
+    <div class="bg-blau-primary dark:bg-blau-dark shadow-lg sticky top-0 z-50">
+        <div class="flex items-center justify-between px-4 py-3">
+            <div class="flex items-center space-x-3">
+                <button id="menuBtn" class="text-white p-2 hover:bg-white/10 rounded-lg">
+                    <i class="fas fa-bars text-lg"></i>
+                </button>
+                <img src="https://pfst.cf2.poecdn.net/base/image/9efe704e01d5a6f7a7b329f4d99687dc3103ba2dea921e54ad9be4a0267d6913?w=318&h=130" alt="blauLabs" class="h-8 w-auto">
+            </div>
+            <div class="flex items-center space-x-2">
+                <button class="text-white p-2 hover:bg-white/10 rounded-lg relative">
+                    <i class="fas fa-bell text-lg"></i>
+                    <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">3</span>
+                </button>
+                <button id="userBtn" class="text-white p-2 hover:bg-white/10 rounded-lg">
+                    <i class="fas fa-user text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation -->
+    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex overflow-x-auto px-4 py-2">
+            <button id="scheduleTab" class="tab-btn flex-shrink-0 px-4 py-2 text-blau-accent border-b-2 border-blau-accent font-medium whitespace-nowrap">
+                <i class="fas fa-calendar-alt mr-2"></i>Programación
+            </button>
+            <button id="inspectionTab" class="tab-btn flex-shrink-0 px-4 py-2 text-gray-500 dark:text-gray-400 hover:text-blau-accent font-medium whitespace-nowrap">
+                <i class="fas fa-clipboard-check mr-2"></i>Inspección
+            </button>
+            <button id="workshopsTab" class="tab-btn flex-shrink-0 px-4 py-2 text-gray-500 dark:text-gray-400 hover:text-blau-accent font-medium whitespace-nowrap">
+                <i class="fas fa-wrench mr-2"></i>Talleres
+            </button>
+        </div>
+    </div>
+
+    <!-- Content Container -->
+    <div class="min-h-screen">
+        <!-- Schedule View -->
+        <div id="scheduleView" class="content-view">
+            <div class="p-4">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Programar Cita</h1>
+                    <p class="text-gray-600 dark:text-gray-400">Unidad: ADO-1156 | Sistema de frenos - Falla crítica</p>
+                </div>
+
+                <!-- New Appointment Form -->
+                <form id="appointmentForm" class="space-y-6">
+                    <!-- Vehicle Information -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <h3 class="font-semibold text-gray-900 dark:text-white mb-4">
+                            <i class="fas fa-bus text-blue-500 mr-2"></i>Información del Vehículo
+                        </h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Número de Unidad</label>
+                                <input type="text" value="ADO-1156" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Problema Reportado</label>
+                                <textarea rows="3" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" placeholder="Describe el problema...">Sistema de frenos - Falla crítica. Ruidos extraños al frenar, pérdida de eficiencia en el frenado.</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Selection -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <h3 class="font-semibold text-gray-900 dark:text-white mb-4">
+                            <i class="fas fa-calendar text-blue-500 mr-2"></i>Seleccionar Fecha
+                        </h3>
+                        
+                        <!-- Month Navigation -->
+                        <div class="flex items-center justify-between mb-4">
+                            <button type="button" onclick="previousMonth()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                                <i class="fas fa-chevron-left text-gray-600 dark:text-gray-400"></i>
+                            </button>
+                            <h4 class="text-lg font-medium text-gray-900 dark:text-white" id="currentMonth">Marzo 2024</h4>
+                            <button type="button" onclick="nextMonth()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                                <i class="fas fa-chevron-right text-gray-600 dark:text-gray-400"></i>
+                            </button>
+                        </div>
+
+                        <!-- Mobile Calendar -->
+                        <div class="grid grid-cols-7 gap-1 mb-4">
+                            <div class="p-2 text-xs font-medium text-center text-gray-500 dark:text-gray-400">Dom</div>
+                            <div class="p-2 text-xs font-medium text-center text-gray-500 dark:text-gray-400">Lun</div>
+                            <div class="p-2 text-xs font-medium text-center text-gray-500 dark:text-gray-400">Mar</div>
+                            <div class="p-2 text-xs font-medium text-center text-gray-500 dark:text-gray-400">Mié</div>
+                            <div class="p-2 text-xs font-medium text-center text-gray-500 dark:text-gray-400">Jue</div>
+                            <div class="p-2 text-xs font-medium text-center text-gray-500 dark:text-gray-400">Vie</div>
+                            <div class="p-2 text-xs font-medium text-center text-gray-500 dark:text-gray-400">Sáb</div>
+                        </div>
+
+                        <div class="grid grid-cols-7 gap-1" id="calendarDays">
+                            <!-- Days will be generated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Time Selection -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <h3 class="font-semibold text-gray-900 dark:text-white mb-4">
+                            <i class="fas fa-clock text-blue-500 mr-2"></i>Horario Disponible
+                        </h3>
+                        <div class="grid grid-cols-3 gap-3" id="timeSlots">
+                            <button type="button" class="time-slot p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-center hover:bg-blau-accent hover:text-white hover:border-blau-accent transition-colors" onclick="selectTime(this)">08:00</button>
+                            <button type="button" class="time-slot p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-center hover:bg-blau-accent hover:text-white hover:border-blau-accent transition-colors" onclick="selectTime(this)">09:00</button>
+                            <button type="button" class="time-slot p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-center hover:bg-blau-accent hover:text-white hover:border-blau-accent transition-colors" onclick="selectTime(this)">10:00</button>
+                            <button type="button" class="time-slot p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-center hover:bg-blau-accent hover:text-white hover:border-blau-accent transition-colors" onclick="selectTime(this)">11:00</button>
+                            <button type="button" class="time-slot p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-center hover:bg-blau-accent hover:text-white hover:border-blau-accent transition-colors" onclick="selectTime(this)">14:00</button>
+                            <button type="button" class="time-slot p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-center hover:bg-blau-accent hover:text-white hover:border-blau-accent transition-colors" onclick="selectTime(this)">15:00</button>
+                            <button type="button" class="time-slot p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-center hover:bg-blau-accent hover:text-white hover:border-blau-accent transition-colors" onclick="selectTime(this)">16:00</button>
+                            <button type="button" class="time-slot p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-center bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed" disabled>17:00</button>
+                        </div>
+                    </div>
+
+                    <!-- Workshop Selection -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <h3 class="font-semibold text-gray-900 dark:text-white mb-4">
+                            <i class="fas fa-wrench text-blue-500 mr-2"></i>Taller Asignado
+                        </h3>
+                        <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                            <option>Taller Norte CDMX (45 km)</option>
+                            <option>Taller Sur Guadalajara (12 km)</option>
+                            <option>Taller Este Cancún (340 km)</option>
+                        </select>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="pt-4">
+                        <button type="submit" class="w-full bg-blau-accent hover:bg-blue-600 text-white px-6 py-4 rounded-lg font-medium text-lg transition-colors">
+                            <i class="fas fa-check mr-2"></i>Confirmar Cita
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Inspection View -->
+        <div id="inspectionView" class="content-view hidden">
+            <!-- Inspection Queue Management -->
+            <div id="inspectionQueue" class="p-4">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Cola de Inspección</h1>
+                    <p class="text-gray-600 dark:text-gray-400">Unidades programadas para inspección hoy</p>
+                </div>
+
+                <!-- Queue Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <div class="flex items-center">
+                            <div class="bg-blue-100 dark:bg-blue-900/30 rounded-lg p-3">
+                                <i class="fas fa-clipboard-list text-blue-600 dark:text-blue-400 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Total en Cola</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">8</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <div class="flex items-center">
+                            <div class="bg-green-100 dark:bg-green-900/30 rounded-lg p-3">
+                                <i class="fas fa-check-circle text-green-600 dark:text-green-400 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Completadas</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">3</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <div class="flex items-center">
+                            <div class="bg-yellow-100 dark:bg-yellow-900/30 rounded-lg p-3">
+                                <i class="fas fa-clock text-yellow-600 dark:text-yellow-400 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Tiempo Estimado</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">6h</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Queue List -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-list-alt text-blue-500 mr-2"></i>Cola de Inspección
+                            </h3>
+                            <div class="flex space-x-2">
+                                <button class="text-sm text-gray-600 dark:text-gray-400 hover:text-blau-accent px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" onclick="sortQueue('priority')">
+                                    <i class="fas fa-sort mr-1"></i>Por Prioridad
+                                </button>
+                                <button class="text-sm text-gray-600 dark:text-gray-400 hover:text-blau-accent px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" onclick="sortQueue('time')">
+                                    <i class="fas fa-clock mr-1"></i>Por Hora
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="divide-y divide-gray-200 dark:divide-gray-700" id="queueList">
+                        <!-- Current Unit -->
+                        <div class="queue-item p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500" data-unit="ADO-001" data-priority="high">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+                                        <i class="fas fa-play text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <h4 class="font-semibold text-gray-900 dark:text-white">ADO-001</h4>
+                                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">EN PROGRESO</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">Scania Touring • Inspector: Carlos Rodríguez</p>
+                                        <div class="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                                            <span><i class="fas fa-calendar mr-1"></i>Iniciado: 09:15</span>
+                                            <span><i class="fas fa-clock mr-1"></i>Tiempo transcurrido: 25 min</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors" onclick="continueInspection('ADO-001')">
+                                        <i class="fas fa-play mr-2"></i>Continuar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Next Units in Queue -->
+                        <div class="queue-item p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-unit="ADO-156" data-priority="high">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+                                        1
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <h4 class="font-semibold text-gray-900 dark:text-white">ADO-156</h4>
+                                            <span class="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded">PRIORIDAD ALTA</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">Mercedes Sprinter • Mantenimiento preventivo</p>
+                                        <div class="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                                            <span><i class="fas fa-wrench mr-1"></i>Último: Hace 2 meses</span>
+                                            <span><i class="fas fa-route mr-1"></i>287,450 km</span>
+                                            <span><i class="fas fa-exclamation-triangle mr-1 text-yellow-500"></i>2 DTCs activos</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Est: 45 min</div>
+                                    <button class="bg-blau-accent hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition-colors" onclick="startInspection('ADO-156')">
+                                        <i class="fas fa-clipboard-check mr-2"></i>Iniciar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="queue-item p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-unit="ADO-223" data-priority="medium">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="bg-yellow-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+                                        2
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <h4 class="font-semibold text-gray-900 dark:text-white">ADO-223</h4>
+                                            <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-1 rounded">PRIORIDAD MEDIA</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">Volvo 9700 • Revisión programada</p>
+                                        <div class="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                                            <span><i class="fas fa-wrench mr-1"></i>Último: Hace 1 mes</span>
+                                            <span><i class="fas fa-route mr-1"></i>195,230 km</span>
+                                            <span><i class="fas fa-check-circle mr-1 text-green-500"></i>Sin códigos</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Est: 40 min</div>
+                                    <button class="bg-gray-400 text-white px-4 py-2 rounded-lg text-sm cursor-not-allowed" disabled>
+                                        <i class="fas fa-clock mr-2"></i>En espera
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="queue-item p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-unit="ADO-089" data-priority="high">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+                                        3
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <h4 class="font-semibold text-gray-900 dark:text-white">ADO-089</h4>
+                                            <span class="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded">PRIORIDAD ALTA</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">MAN Lion's Coach • Falla reportada</p>
+                                        <div class="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                                            <span><i class="fas fa-wrench mr-1"></i>Último: Hace 3 semanas</span>
+                                            <span><i class="fas fa-route mr-1"></i>412,890 km</span>
+                                            <span><i class="fas fa-exclamation-triangle mr-1 text-red-500"></i>5 DTCs activos</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Est: 60 min</div>
+                                    <button class="bg-gray-400 text-white px-4 py-2 rounded-lg text-sm cursor-not-allowed" disabled>
+                                        <i class="fas fa-clock mr-2"></i>En espera
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="queue-item p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-unit="ADO-334" data-priority="low">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+                                        4
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <h4 class="font-semibold text-gray-900 dark:text-white">ADO-334</h4>
+                                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">PRIORIDAD BAJA</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">Scania Touring • Inspección rutinaria</p>
+                                        <div class="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                                            <span><i class="fas fa-wrench mr-1"></i>Último: Hace 2 semanas</span>
+                                            <span><i class="fas fa-route mr-1"></i>156,780 km</span>
+                                            <span><i class="fas fa-check-circle mr-1 text-green-500"></i>Sin códigos</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Est: 35 min</div>
+                                    <button class="bg-gray-400 text-white px-4 py-2 rounded-lg text-sm cursor-not-allowed" disabled>
+                                        <i class="fas fa-clock mr-2"></i>En espera
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="queue-item p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-unit="ADO-445" data-priority="medium">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="bg-yellow-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+                                        5
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <h4 class="font-semibold text-gray-900 dark:text-white">ADO-445</h4>
+                                            <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-1 rounded">PRIORIDAD MEDIA</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">Mercedes Sprinter • Mantenimiento 50K</p>
+                                        <div class="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                                            <span><i class="fas fa-wrench mr-1"></i>Último: Hace 6 meses</span>
+                                            <span><i class="fas fa-route mr-1"></i>49,890 km</span>
+                                            <span><i class="fas fa-info-circle mr-1 text-blue-500"></i>1 DTC informativo</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Est: 50 min</div>
+                                    <button class="bg-gray-400 text-white px-4 py-2 rounded-lg text-sm cursor-not-allowed" disabled>
+                                        <i class="fas fa-clock mr-2"></i>En espera
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Queue Actions -->
+                <div class="mt-6 flex flex-col sm:flex-row gap-3">
+                    <button class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors" onclick="refreshQueue()">
+                        <i class="fas fa-sync-alt mr-2"></i>Actualizar Cola
+                    </button>
+                    <button class="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-colors" onclick="exportQueue()">
+                        <i class="fas fa-download mr-2"></i>Exportar Lista
+                    </button>
+                    <button class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors" onclick="addToQueue()">
+                        <i class="fas fa-plus mr-2"></i>Agregar Unidad
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress and Timer Header -->
+            <div id="inspectionHeader" class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40 hidden">
+                <!-- Timer Section - Most Important KPI -->
+                <div class="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="bg-white bg-opacity-20 rounded-full p-2">
+                                <i class="fas fa-stopwatch text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs opacity-90">Tiempo de Inspección</div>
+                                <div class="text-2xl font-bold font-mono" id="inspectionTimer">00:00</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs opacity-90">Objetivo: 45 min</div>
+                            <div class="text-sm font-medium" id="efficiencyStatus">En tiempo</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="px-4 py-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Progreso de Inspección</span>
+                        <span class="text-sm font-medium text-blau-accent" id="progressPercentage">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                        <div class="bg-gradient-to-r from-blau-accent to-blue-500 h-3 rounded-full transition-all duration-500 ease-out" style="width: 0%" id="progressBar"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <span>Paso <span id="currentStepNumber">1</span> de <span id="totalSteps">8</span></span>
+                        <span id="currentStepName">Información del Vehículo</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4">
+                <!-- Inspection Steps Container -->
+                <div id="inspectionSteps">
+                    <!-- Step 1: Vehicle Information -->
+                    <div class="inspection-step active" data-step="1">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                            <div class="text-center mb-6">
+                                <div class="inline-flex items-center justify-center w-16 h-16 bg-blau-accent rounded-full text-white text-2xl mb-4">
+                                    <i class="fas fa-bus"></i>
+                                </div>
+                                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Información del Vehículo</h2>
+                                <p class="text-gray-600 dark:text-gray-400">Complete los datos básicos del vehículo</p>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Número de Unidad</label>
+                                        <input type="text" value="ADO-001" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Modelo del Vehículo</label>
+                                        <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                            <option>Scania Touring</option>
+                                            <option>Mercedes Sprinter</option>
+                                            <option>Volvo 9700</option>
+                                            <option>MAN Lion's Coach</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Placas</label>
+                                        <input type="text" value="123-ABC" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Kilometraje</label>
+                                        <input type="number" value="287450" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Inspector</label>
+                                        <input type="text" value="Carlos Rodríguez" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Fecha de Inspección</label>
+                                        <input type="date" value="2024-03-15" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                    </div>
+                                </div>
+
+                                <!-- Telematics Data Section -->
+                                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4">
+                                    <button type="button" class="w-full flex items-center justify-between text-left" onclick="toggleTelematics('vehicle-telematics')">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-satellite-dish text-blue-600 dark:text-blue-400 mr-3"></i>
+                                            <h4 class="font-semibold text-blue-900 dark:text-blue-100">Datos Telemáticos - Información General</h4>
+                                        </div>
+                                        <i class="fas fa-chevron-down transform transition-transform text-blue-600 dark:text-blue-400" id="vehicle-telematics-chevron"></i>
+                                    </button>
+                                    
+                                    <div id="vehicle-telematics" class="hidden mt-4 space-y-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Estado del Motor</span>
+                                                    <span class="text-green-600 font-medium">
+                                                        <i class="fas fa-circle text-xs mr-1"></i>Activo
+                                                    </span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">RPM: 800</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Velocidad Actual</span>
+                                                    <span class="text-blue-600 font-medium">0 km/h</span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">Promedio: 65 km/h</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Combustible</span>
+                                                    <span class="text-orange-600 font-medium">68%</span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">340L / 500L</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Últimos Códigos de Diagnóstico (DTC)</h5>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                                                    <span class="text-sm text-green-800 dark:text-green-200">P0000 - Sin códigos activos</span>
+                                                    <span class="text-xs text-green-600 dark:text-green-400">Hace 2h</span>
+                                                </div>
+                                                <div class="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+                                                    <span class="text-sm text-yellow-800 dark:text-yellow-200">B1213 - Sensor de presión de frenos (Histórico)</span>
+                                                    <span class="text-xs text-yellow-600 dark:text-yellow-400">Hace 3 días</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Estadísticas de Uso (Últimos 30 días)</h5>
+                                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                                <div>
+                                                    <span class="text-gray-600 dark:text-gray-400">Km recorridos</span>
+                                                    <div class="font-semibold text-gray-900 dark:text-white">4,230 km</div>
+                                                </div>
+                                                <div>
+                                                    <span class="text-gray-600 dark:text-gray-400">Horas de motor</span>
+                                                    <div class="font-semibold text-gray-900 dark:text-white">158.5 h</div>
+                                                </div>
+                                                <div>
+                                                    <span class="text-gray-600 dark:text-gray-400">Consumo promedio</span>
+                                                    <div class="font-semibold text-gray-900 dark:text-white">22.4 L/100km</div>
+                                                </div>
+                                                <div>
+                                                    <span class="text-gray-600 dark:text-gray-400">Tiempo en ralentí</span>
+                                                    <div class="font-semibold text-gray-900 dark:text-white">12.3 h</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Exterior Inspection -->
+                    <div class="inspection-step hidden" data-step="2">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                            <div class="text-center mb-6">
+                                <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-500 rounded-full text-white text-2xl mb-4">
+                                    <i class="fas fa-car"></i>
+                                </div>
+                                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Inspección Exterior</h2>
+                                <p class="text-gray-600 dark:text-gray-400">Verifique el estado externo del vehículo</p>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Carrocería y pintura</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base mb-3" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Sin daños visibles</option>
+                                        <option value="warning">⚠️ Observación - Daños menores</option>
+                                        <option value="error">❌ Falla - Requiere reparación</option>
+                                    </select>
+                                    <textarea rows="2" placeholder="Observaciones específicas..." class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base"></textarea>
+                                    <div class="photo-section mt-3">
+                                        <button type="button" class="photo-btn bg-blau-accent hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors" onclick="openCamera(this, 'carroceria')">
+                                            <i class="fas fa-camera mr-2"></i>Tomar Foto
+                                        </button>
+                                        <div class="photo-gallery mt-3 hidden">
+                                            <div class="grid grid-cols-3 gap-2" id="photos-carroceria"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Parabrisas y ventanas</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base mb-3" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Cristales limpios</option>
+                                        <option value="warning">⚠️ Observación - Rayones menores</option>
+                                        <option value="error">❌ Falla - Cristal roto/agrietado</option>
+                                    </select>
+                                    <button type="button" class="mt-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                                        <i class="fas fa-camera mr-2"></i>Tomar Foto
+                                    </button>
+                                </div>
+
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Luces exteriores</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base mb-3" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Todas funcionando</option>
+                                        <option value="warning">⚠️ Observación - Luces opacas</option>
+                                        <option value="error">❌ Falla - Luces fundidas</option>
+                                    </select>
+                                    <button type="button" class="mt-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                                        <i class="fas fa-camera mr-2"></i>Tomar Foto
+                                    </button>
+                                </div>
+
+                                <!-- Telematics Data Section -->
+                                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4 mt-6">
+                                    <button type="button" class="w-full flex items-center justify-between text-left" onclick="toggleTelematics('exterior-telematics')">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-satellite-dish text-blue-600 dark:text-blue-400 mr-3"></i>
+                                            <h4 class="font-semibold text-blue-900 dark:text-blue-100">Datos Telemáticos - Sistemas Exteriores</h4>
+                                        </div>
+                                        <i class="fas fa-chevron-down transform transition-transform text-blue-600 dark:text-blue-400" id="exterior-telematics-chevron"></i>
+                                    </button>
+                                    
+                                    <div id="exterior-telematics" class="hidden mt-4 space-y-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Sistema de Luces</span>
+                                                    <span class="text-green-600 font-medium">
+                                                        <i class="fas fa-circle text-xs mr-1"></i>Funcional
+                                                    </span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">100% Operativas</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Sensores Externos</span>
+                                                    <span class="text-green-600 font-medium">Activos</span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">8/8 Sensores</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Historial de Fallos - Iluminación</h5>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                                                    <span class="text-sm text-green-800 dark:text-green-200">Sin fallos en los últimos 30 días</span>
+                                                    <span class="text-xs text-green-600 dark:text-green-400">✓</span>
+                                                </div>
+                                                <div class="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+                                                    <span class="text-sm text-yellow-800 dark:text-yellow-200">Luz trasera derecha - Reemplazada</span>
+                                                    <span class="text-xs text-yellow-600 dark:text-yellow-400">Hace 45 días</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Tires Inspection -->
+                    <div class="inspection-step hidden" data-step="3">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                            <div class="text-center mb-6">
+                                <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-600 rounded-full text-white text-2xl mb-4">
+                                    <i class="fas fa-circle"></i>
+                                </div>
+                                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Neumáticos y Suspensión</h2>
+                                <p class="text-gray-600 dark:text-gray-400">Inspeccione el estado de los neumáticos</p>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Presión de neumáticos</label>
+                                    <div class="grid grid-cols-2 gap-4 mb-3">
+                                        <div>
+                                            <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Delantero izquierdo (PSI)</label>
+                                            <input type="number" value="32" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent text-base" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Delantero derecho (PSI)</label>
+                                            <input type="number" value="32" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent text-base" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Trasero izquierdo (PSI)</label>
+                                            <input type="number" value="35" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent text-base" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Trasero derecho (PSI)</label>
+                                            <input type="number" value="35" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent text-base" required>
+                                        </div>
+                                    </div>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Evalúe el estado general</option>
+                                        <option value="ok">✅ Excelente - Presión correcta</option>
+                                        <option value="warning">⚠️ Observación - Ajustar presión</option>
+                                        <option value="error">❌ Falla - Presión muy baja/alta</option>
+                                    </select>
+                                </div>
+
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Desgaste de banda de rodamiento</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Desgaste uniforme</option>
+                                        <option value="warning">⚠️ Observación - Desgaste irregular</option>
+                                        <option value="error">❌ Falla - Cambio inmediato</option>
+                                    </select>
+                                    <button type="button" class="mt-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                                        <i class="fas fa-camera mr-2"></i>Fotografías de Neumáticos
+                                    </button>
+                                </div>
+
+                                <!-- Telematics Data Section -->
+                                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4 mt-6">
+                                    <button type="button" class="w-full flex items-center justify-between text-left" onclick="toggleTelematics('tires-telematics')">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-satellite-dish text-blue-600 dark:text-blue-400 mr-3"></i>
+                                            <h4 class="font-semibold text-blue-900 dark:text-blue-100">Datos Telemáticos - Sistema TPMS</h4>
+                                        </div>
+                                        <i class="fas fa-chevron-down transform transition-transform text-blue-600 dark:text-blue-400" id="tires-telematics-chevron"></i>
+                                    </button>
+                                    
+                                    <div id="tires-telematics" class="hidden mt-4 space-y-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">TPMS Activo</span>
+                                                    <span class="text-green-600 font-medium">
+                                                        <i class="fas fa-circle text-xs mr-1"></i>Operativo
+                                                    </span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">4/4 Sensores</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Temp. Promedio</span>
+                                                    <span class="text-blue-600 font-medium">68°C</span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">Rango Normal</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Presiones en Tiempo Real (TPMS)</h5>
+                                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                                <div class="flex justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                                                    <span class="text-green-800 dark:text-green-200">Delantero Izq.</span>
+                                                    <span class="font-semibold text-green-800 dark:text-green-200">32.1 PSI</span>
+                                                </div>
+                                                <div class="flex justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                                                    <span class="text-green-800 dark:text-green-200">Delantero Der.</span>
+                                                    <span class="font-semibold text-green-800 dark:text-green-200">31.8 PSI</span>
+                                                </div>
+                                                <div class="flex justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border">
+                                                    <span class="text-yellow-800 dark:text-yellow-200">Trasero Izq.</span>
+                                                    <span class="font-semibold text-yellow-800 dark:text-yellow-200">34.2 PSI</span>
+                                                </div>
+                                                <div class="flex justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                                                    <span class="text-green-800 dark:text-green-200">Trasero Der.</span>
+                                                    <span class="font-semibold text-green-800 dark:text-green-200">35.1 PSI</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Historial de Alertas - Neumáticos</h5>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+                                                    <span class="text-sm text-yellow-800 dark:text-yellow-200">Presión baja - Trasero izquierdo</span>
+                                                    <span class="text-xs text-yellow-600 dark:text-yellow-400">Hace 2 días</span>
+                                                </div>
+                                                <div class="flex items-center justify-between p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                                                    <span class="text-sm text-red-800 dark:text-red-200">Sensor TPMS fallo temporal</span>
+                                                    <span class="text-xs text-red-600 dark:text-red-400">Hace 1 semana</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Brakes and Safety -->
+                    <div class="inspection-step hidden" data-step="4">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                            <div class="text-center mb-6">
+                                <div class="inline-flex items-center justify-center w-16 h-16 bg-red-500 rounded-full text-white text-2xl mb-4">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Frenos y Seguridad</h2>
+                                <p class="text-gray-600 dark:text-gray-400">Sistema crítico de seguridad</p>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Pastillas de freno</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - >70% vida útil</option>
+                                        <option value="warning">⚠️ Observación - 30-70% vida útil</option>
+                                        <option value="error">❌ Falla - <30% vida útil</option>
+                                    </select>
+                                    <button type="button" class="mt-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                                        <i class="fas fa-camera mr-2"></i>Tomar Foto
+                                    </button>
+                                </div>
+
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Líquido de frenos</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Nivel óptimo</option>
+                                        <option value="warning">⚠️ Observación - Nivel bajo</option>
+                                        <option value="error">❌ Falla - Rellenar inmediatamente</option>
+                                    </select>
+                                </div>
+
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Discos de freno</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Sin desgaste</option>
+                                        <option value="warning">⚠️ Observación - Desgaste moderado</option>
+                                        <option value="error">❌ Falla - Reemplazar discos</option>
+                                    </select>
+                                </div>
+
+                                <!-- Telematics Data Section -->
+                                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4 mt-6">
+                                    <button type="button" class="w-full flex items-center justify-between text-left" onclick="toggleTelematics('brakes-telematics')">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-satellite-dish text-blue-600 dark:text-blue-400 mr-3"></i>
+                                            <h4 class="font-semibold text-blue-900 dark:text-blue-100">Datos Telemáticos - Sistema de Frenos</h4>
+                                        </div>
+                                        <i class="fas fa-chevron-down transform transition-transform text-blue-600 dark:text-blue-400" id="brakes-telematics-chevron"></i>
+                                    </button>
+                                    
+                                    <div id="brakes-telematics" class="hidden mt-4 space-y-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Presión Sistema</span>
+                                                    <span class="text-yellow-600 font-medium">
+                                                        <i class="fas fa-circle text-xs mr-1"></i>Advertencia
+                                                    </span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">85 PSI</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Temp. Frenos</span>
+                                                    <span class="text-green-600 font-medium">Normal</span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">78°C</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Códigos DTC - Sistema de Frenos</h5>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+                                                    <span class="text-sm text-yellow-800 dark:text-yellow-200">B1213 - Sensor de presión de frenos</span>
+                                                    <span class="text-xs text-yellow-600 dark:text-yellow-400">Activo</span>
+                                                </div>
+                                                <div class="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                                                    <span class="text-sm text-green-800 dark:text-green-200">B0045 - Circuito ABS funcional</span>
+                                                    <span class="text-xs text-green-600 dark:text-green-400">OK</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Historial de Mantenimiento</h5>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded border">
+                                                    <span class="text-sm text-blue-800 dark:text-blue-200">Cambio pastillas delanteras</span>
+                                                    <span class="text-xs text-blue-600 dark:text-blue-400">Hace 2 meses</span>
+                                                </div>
+                                                <div class="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded border">
+                                                    <span class="text-sm text-blue-800 dark:text-blue-200">Revisión líquido de frenos</span>
+                                                    <span class="text-xs text-blue-600 dark:text-blue-400">Hace 1 mes</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Engine and Mechanics -->
+                    <div class="inspection-step hidden" data-step="5">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                            <div class="text-center mb-6">
+                                <div class="inline-flex items-center justify-center w-16 h-16 bg-orange-500 rounded-full text-white text-2xl mb-4">
+                                    <i class="fas fa-cog"></i>
+                                </div>
+                                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Motor y Mecánica</h2>
+                                <p class="text-gray-600 dark:text-gray-400">Sistemas mecánicos del vehículo</p>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Nivel de aceite de motor</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Nivel óptimo</option>
+                                        <option value="warning">⚠️ Observación - Nivel bajo</option>
+                                        <option value="error">❌ Falla - Cambio urgente</option>
+                                    </select>
+                                </div>
+
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Sistema de refrigeración</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Temperatura normal</option>
+                                        <option value="warning">⚠️ Observación - Revisar termostato</option>
+                                        <option value="error">❌ Falla - Sobrecalentamiento</option>
+                                    </select>
+                                </div>
+
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Filtros de aire</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Filtro limpio</option>
+                                        <option value="warning">⚠️ Observación - Filtro sucio</option>
+                                        <option value="error">❌ Falla - Reemplazar filtro</option>
+                                    </select>
+                                </div>
+
+                                <!-- Telematics Data Section -->
+                                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4 mt-6">
+                                    <button type="button" class="w-full flex items-center justify-between text-left" onclick="toggleTelematics('engine-telematics')">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-satellite-dish text-blue-600 dark:text-blue-400 mr-3"></i>
+                                            <h4 class="font-semibold text-blue-900 dark:text-blue-100">Datos Telemáticos - Sistema Motor</h4>
+                                        </div>
+                                        <i class="fas fa-chevron-down transform transition-transform text-blue-600 dark:text-blue-400" id="engine-telematics-chevron"></i>
+                                    </button>
+                                    
+                                    <div id="engine-telematics" class="hidden mt-4 space-y-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Temp. Motor</span>
+                                                    <span class="text-green-600 font-medium">
+                                                        <i class="fas fa-circle text-xs mr-1"></i>Normal
+                                                    </span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">87°C</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Presión Aceite</span>
+                                                    <span class="text-green-600 font-medium">Óptima</span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">45 PSI</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">RPM Actuales</span>
+                                                    <span class="text-blue-600 font-medium">Ralentí</span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">800 RPM</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Sensores de Motor en Tiempo Real</h5>
+                                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                                <div class="flex justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                                                    <span class="text-green-800 dark:text-green-200">Sensor O2</span>
+                                                    <span class="font-semibold text-green-800 dark:text-green-200">Funcional</span>
+                                                </div>
+                                                <div class="flex justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                                                    <span class="text-green-800 dark:text-green-200">MAP Sensor</span>
+                                                    <span class="font-semibold text-green-800 dark:text-green-200">98 kPa</span>
+                                                </div>
+                                                <div class="flex justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                                                    <span class="text-green-800 dark:text-green-200">MAF Sensor</span>
+                                                    <span class="font-semibold text-green-800 dark:text-green-200">24.3 g/s</span>
+                                                </div>
+                                                <div class="flex justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border">
+                                                    <span class="text-yellow-800 dark:text-yellow-200">EGR Valve</span>
+                                                    <span class="font-semibold text-yellow-800 dark:text-yellow-200">Revisión</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Rendimiento del Motor (Última semana)</h5>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded border">
+                                                    <span class="text-sm text-blue-800 dark:text-blue-200">Consumo promedio: 22.4 L/100km</span>
+                                                    <span class="text-xs text-blue-600 dark:text-blue-400">+2.1%</span>
+                                                </div>
+                                                <div class="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                                                    <span class="text-sm text-green-800 dark:text-green-200">Tiempo de calentamiento promedio: 3.2 min</span>
+                                                    <span class="text-xs text-green-600 dark:text-green-400">Óptimo</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Interior Inspection -->
+                    <div class="inspection-step hidden" data-step="6">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                            <div class="text-center mb-6">
+                                <div class="inline-flex items-center justify-center w-16 h-16 bg-purple-500 rounded-full text-white text-2xl mb-4">
+                                    <i class="fas fa-couch"></i>
+                                </div>
+                                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Inspección Interior</h2>
+                                <p class="text-gray-600 dark:text-gray-400">Comodidad y seguridad de pasajeros</p>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Asientos de pasajeros</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Todos funcionales</option>
+                                        <option value="warning">⚠️ Observación - Desgaste menor</option>
+                                        <option value="error">❌ Falla - Asientos dañados</option>
+                                    </select>
+                                    <button type="button" class="mt-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                                        <i class="fas fa-camera mr-2"></i>Tomar Foto Interior
+                                    </button>
+                                </div>
+
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Sistema de aire acondicionado</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Enfría correctamente</option>
+                                        <option value="warning">⚠️ Observación - Enfriamiento débil</option>
+                                        <option value="error">❌ Falla - No funciona</option>
+                                    </select>
+                                </div>
+
+                                <div class="inspection-item">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Equipo de emergencia</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione el estado</option>
+                                        <option value="ok">✅ Excelente - Completo y vigente</option>
+                                        <option value="warning">⚠️ Observación - Próximo a vencer</option>
+                                        <option value="error">❌ Falla - Equipo faltante</option>
+                                    </select>
+                                </div>
+
+                                <!-- Telematics Data Section -->
+                                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4 mt-6">
+                                    <button type="button" class="w-full flex items-center justify-between text-left" onclick="toggleTelematics('interior-telematics')">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-satellite-dish text-blue-600 dark:text-blue-400 mr-3"></i>
+                                            <h4 class="font-semibold text-blue-900 dark:text-blue-100">Datos Telemáticos - Sistemas Interiores</h4>
+                                        </div>
+                                        <i class="fas fa-chevron-down transform transition-transform text-blue-600 dark:text-blue-400" id="interior-telematics-chevron"></i>
+                                    </button>
+                                    
+                                    <div id="interior-telematics" class="hidden mt-4 space-y-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Clima Interior</span>
+                                                    <span class="text-green-600 font-medium">
+                                                        <i class="fas fa-circle text-xs mr-1"></i>Operativo
+                                                    </span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">22°C</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Sistemas Eléctricos</span>
+                                                    <span class="text-green-600 font-medium">100%</span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">12.8V Batería</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Consumo Energético - Interior</h5>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                                                    <span class="text-sm text-green-800 dark:text-green-200">Sistema A/C: 2.3 kW</span>
+                                                    <span class="text-xs text-green-600 dark:text-green-400">Normal</span>
+                                                </div>
+                                                <div class="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                                                    <span class="text-sm text-green-800 dark:text-green-200">Iluminación interior: 0.4 kW</span>
+                                                    <span class="text-xs text-green-600 dark:text-green-400">Óptimo</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 7: General Comments -->
+                    <div class="inspection-step hidden" data-step="7">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                            <div class="text-center mb-6">
+                                <div class="inline-flex items-center justify-center w-16 h-16 bg-green-500 rounded-full text-white text-2xl mb-4">
+                                    <i class="fas fa-comments"></i>
+                                </div>
+                                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Observaciones Finales</h2>
+                                <p class="text-gray-600 dark:text-gray-400">Comentarios adicionales y evaluación general</p>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Estado general del vehículo</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base" required>
+                                        <option value="">Seleccione evaluación general</option>
+                                        <option value="approved">✅ APROBADO - Vehículo en condiciones óptimas</option>
+                                        <option value="conditional">⚠️ CONDICIONAL - Requiere mantenimiento menor</option>
+                                        <option value="rejected">❌ RECHAZADO - Requiere reparaciones mayores</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Observaciones generales</label>
+                                    <textarea rows="5" placeholder="Ingrese observaciones adicionales, recomendaciones de mantenimiento, problemas detectados..." class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base"></textarea>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Próximo mantenimiento recomendado</label>
+                                    <input type="date" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                                </div>
+
+                                <!-- Telematics Data Summary -->
+                                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4 mt-6">
+                                    <button type="button" class="w-full flex items-center justify-between text-left" onclick="toggleTelematics('summary-telematics')">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-satellite-dish text-blue-600 dark:text-blue-400 mr-3"></i>
+                                            <h4 class="font-semibold text-blue-900 dark:text-blue-100">Resumen Telemático - Estado General</h4>
+                                        </div>
+                                        <i class="fas fa-chevron-down transform transition-transform text-blue-600 dark:text-blue-400" id="summary-telematics-chevron"></i>
+                                    </button>
+                                    
+                                    <div id="summary-telematics" class="hidden mt-4 space-y-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Sistemas Críticos</span>
+                                                    <span class="text-yellow-600 font-medium">
+                                                        <i class="fas fa-circle text-xs mr-1"></i>1 Advertencia
+                                                    </span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">7/8 Sistemas OK</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600 dark:text-gray-400">Eficiencia Operativa</span>
+                                                    <span class="text-green-600 font-medium">Óptima</span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <span class="text-lg font-semibold text-gray-900 dark:text-white">87%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                            <h5 class="font-medium text-gray-900 dark:text-white mb-3">Recomendaciones Basadas en Datos IoT</h5>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border">
+                                                    <span class="text-sm text-yellow-800 dark:text-yellow-200">Revisar sensor de presión de frenos</span>
+                                                    <span class="text-xs text-yellow-600 dark:text-yellow-400">Prioridad Media</span>
+                                                </div>
+                                                <div class="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded border">
+                                                    <span class="text-sm text-blue-800 dark:text-blue-200">Mantenimiento preventivo en 2,500 km</span>
+                                                    <span class="text-xs text-blue-600 dark:text-blue-400">Programado</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 8: Final Review -->
+                    <div class="inspection-step hidden" data-step="8">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                            <div class="text-center mb-6">
+                                <div class="inline-flex items-center justify-center w-16 h-16 bg-blau-accent rounded-full text-white text-2xl mb-4">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Finalizar Inspección</h2>
+                                <p class="text-gray-600 dark:text-gray-400">Revise y confirme la información</p>
+                            </div>
+                            
+                            <div class="bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-700 dark:to-gray-600 rounded-lg p-6 mb-6">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Resumen de Inspección</h3>
+                                <div class="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span class="text-gray-600 dark:text-gray-400">Tiempo total:</span>
+                                        <span class="font-medium text-gray-900 dark:text-white ml-2" id="totalTime">--:--</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-600 dark:text-gray-400">Eficiencia:</span>
+                                        <span class="font-medium text-green-600 ml-2" id="finalEfficiency">Excelente</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-600 dark:text-gray-400">Items inspeccionados:</span>
+                                        <span class="font-medium text-gray-900 dark:text-white ml-2">15/15</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-600 dark:text-gray-400">Estado general:</span>
+                                        <span class="font-medium text-green-600 ml-2">Aprobado</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                    <h4 class="font-medium text-gray-900 dark:text-white mb-2">Firma Digital del Inspector</h4>
+                                    <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
+                                        <i class="fas fa-signature text-3xl text-gray-400 mb-2"></i>
+                                        <p class="text-gray-600 dark:text-gray-400 text-sm">Carlos Rodríguez</p>
+                                        <p class="text-gray-500 dark:text-gray-500 text-xs">Inspector Certificado #1234</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex justify-between items-center mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" id="prevButton" class="flex items-center px-6 py-3 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fas fa-chevron-left mr-2"></i>Anterior
+                    </button>
+                    
+                    <div class="flex space-x-3">
+                        <button type="button" id="saveButton" class="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors">
+                            <i class="fas fa-save mr-2"></i>Guardar Borrador
+                        </button>
+                        <button type="button" id="nextButton" class="flex items-center px-6 py-3 bg-blau-accent hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
+                            Siguiente<i class="fas fa-chevron-right ml-2"></i>
+                        </button>
+                        <button type="button" id="finishButton" class="hidden flex items-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                            <i class="fas fa-check mr-2"></i>Finalizar Inspección
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workshops View -->
+        <div id="workshopsView" class="content-view hidden">
+            <div class="p-4">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Talleres Disponibles</h1>
+                    <p class="text-gray-600 dark:text-gray-400">Estado actual de talleres y capacidad</p>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Workshop Cards -->
+                    <div class="workshop-card bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center">
+                                <div class="status-dot bg-green-500 mr-3"></div>
+                                <h3 class="font-semibold text-gray-900 dark:text-white">Taller Norte CDMX</h3>
+                            </div>
+                            <span class="text-sm text-green-600 font-medium">Disponible</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-400">Distancia</p>
+                                <p class="font-medium text-gray-900 dark:text-white">45 km</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-400">En progreso</p>
+                                <p class="font-medium text-gray-900 dark:text-white">3 unidades</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Motor y Transmisión</p>
+                    </div>
+
+                    <div class="workshop-card bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center">
+                                <div class="status-dot bg-green-500 mr-3"></div>
+                                <h3 class="font-semibold text-gray-900 dark:text-white">Taller Sur Guadalajara</h3>
+                            </div>
+                            <span class="text-sm text-green-600 font-medium">Disponible</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-400">Distancia</p>
+                                <p class="font-medium text-gray-900 dark:text-white">12 km</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-400">En progreso</p>
+                                <p class="font-medium text-gray-900 dark:text-white">1 unidades</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Frenos y Suspensión</p>
+                    </div>
+
+                    <div class="workshop-card bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center">
+                                <div class="status-dot bg-red-500 mr-3"></div>
+                                <h3 class="font-semibold text-gray-900 dark:text-white">Taller Centro Monterrey</h3>
+                            </div>
+                            <span class="text-sm text-red-600 font-medium">Ocupado</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-400">Distancia</p>
+                                <p class="font-medium text-gray-900 dark:text-white">230 km</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-400">En progreso</p>
+                                <p class="font-medium text-gray-900 dark:text-white">6 unidades</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Sistemas Eléctricos</p>
+                    </div>
+
+                    <div class="workshop-card bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center">
+                                <div class="status-dot bg-green-500 mr-3"></div>
+                                <h3 class="font-semibold text-gray-900 dark:text-white">Taller Este Cancún</h3>
+                            </div>
+                            <span class="text-sm text-green-600 font-medium">Disponible</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-400">Distancia</p>
+                                <p class="font-medium text-gray-900 dark:text-white">340 km</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-400">En progreso</p>
+                                <p class="font-medium text-gray-900 dark:text-white">2 unidades</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Aire Acondicionado</p>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <div class="mt-6">
+                    <button class="w-full bg-blau-accent hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                        <i class="fas fa-map-marker-alt mr-2"></i>Ver en Mapa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dark mode support
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Tab functionality
+        function showTab(tabId, viewId) {
+            // Hide all content views
+            document.querySelectorAll('.content-view').forEach(view => {
+                view.classList.add('hidden');
+            });
+            
+            // Remove active state from all tabs
+            document.querySelectorAll('.tab-btn').forEach(tab => {
+                tab.classList.remove('text-blau-accent', 'border-blau-accent');
+                tab.classList.add('text-gray-500', 'dark:text-gray-400');
+            });
+            
+            // Show selected view
+            document.getElementById(viewId).classList.remove('hidden');
+            
+            // Activate selected tab
+            const activeTab = document.getElementById(tabId);
+            activeTab.classList.remove('text-gray-500', 'dark:text-gray-400');
+            activeTab.classList.add('text-blau-accent', 'border-b-2', 'border-blau-accent');
+        }
+
+        // Toggle inspection sections
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const chevron = document.getElementById(sectionId.replace('Section', 'Chevron'));
+            
+            if (section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+            } else {
+                section.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+            }
+        }
+
+        // Calendar functionality
+        let currentDate = new Date(2024, 2, 15); // March 15, 2024
+        let selectedDate = null;
+        let selectedTime = null;
+
+        function generateCalendar() {
+            const calendarDays = document.getElementById('calendarDays');
+            const currentMonth = document.getElementById('currentMonth');
+            
+            if (!calendarDays) return;
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            // Update month display
+            const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                               'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            currentMonth.textContent = `${monthNames[month]} ${year}`;
+            
+            // Clear previous calendar
+            calendarDays.innerHTML = '';
+            
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            // Add empty cells for days before first day of month
+            for (let i = 0; i < firstDay; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'calendar-day p-2';
+                calendarDays.appendChild(emptyCell);
+            }
+            
+            // Add days of the month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'calendar-day p-2 text-center cursor-pointer rounded-lg text-gray-900 dark:text-white';
+                dayCell.textContent = day;
+                dayCell.onclick = () => selectDate(day);
+                
+                // Disable past dates
+                const cellDate = new Date(year, month, day);
+                const today = new Date();
+                if (cellDate < today) {
+                    dayCell.className += ' text-gray-400 cursor-not-allowed';
+                    dayCell.onclick = null;
+                }
+                
+                calendarDays.appendChild(dayCell);
+            }
+        }
+
+        function selectDate(day) {
+            // Remove previous selection
+            document.querySelectorAll('.calendar-day').forEach(cell => {
+                cell.classList.remove('selected');
+            });
+            
+            // Select new date
+            event.target.classList.add('selected');
+            selectedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+            
+            // Update available time slots based on selected date
+            updateTimeSlots();
+        }
+
+        function updateTimeSlots() {
+            const timeSlots = document.querySelectorAll('.time-slot');
+            timeSlots.forEach(slot => {
+                // Randomly disable some slots to simulate real availability
+                const isAvailable = Math.random() > 0.3;
+                if (isAvailable && !slot.disabled) {
+                    slot.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-400', 'cursor-not-allowed');
+                    slot.disabled = false;
+                } else if (!slot.textContent.includes('17:00')) {
+                    slot.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-400', 'cursor-not-allowed');
+                    slot.disabled = true;
+                }
+            });
+        }
+
+        function selectTime(button) {
+            if (button.disabled) return;
+            
+            // Remove previous selection
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.classList.remove('bg-blau-accent', 'text-white', 'border-blau-accent');
+            });
+            
+            // Select new time
+            button.classList.add('bg-blau-accent', 'text-white', 'border-blau-accent');
+            selectedTime = button.textContent;
+        }
+
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            generateCalendar();
+        }
+
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            generateCalendar();
+        }
+
+        // Form submission handlers
+        function handleAppointmentSubmit() {
+            const formData = new FormData(document.getElementById('appointmentForm'));
+            
+            if (!selectedDate || !selectedTime) {
+                showSuccessMessage('Por favor selecciona fecha y horario');
+                return;
+            }
+            
+            // Simulate form submission
+            showSuccessMessage(`Cita programada exitosamente para ${selectedDate.toLocaleDateString()} a las ${selectedTime}`);
+        }
+
+        function handleInspectionSubmit() {
+            const formData = new FormData(document.getElementById('inspectionForm'));
+            
+            // Collect all form data
+            const inspectionData = {
+                unit: formData.get('unit') || document.querySelector('input[value="ADO-001"]').value,
+                inspector: formData.get('inspector') || document.querySelector('input[value="Carlos Rodríguez"]').value,
+                date: formData.get('date') || document.querySelector('input[type="date"]').value
+            };
+            
+            // Simulate form submission
+            showSuccessMessage('Inspección completada y enviada al sistema IoT');
+        }
+
+        function showSuccessMessage(message) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full mx-4">
+                    <div class="p-6 text-center">
+                        <div class="mb-4">
+                            <i class="fas fa-check-circle text-green-500 text-4xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">¡Éxito!</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">${message}</p>
+                        <button onclick="this.closest('.fixed').remove()" class="bg-blau-accent text-white py-2 px-6 rounded-lg hover:bg-blue-600 transition-colors">
+                            Aceptar
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Inspection Wizard Functionality
+        let currentStep = 1;
+        let totalSteps = 8;
+        let inspectionStartTime = null;
+        let timerInterval = null;
+
+        const stepNames = [
+            'Información del Vehículo',
+            'Inspección Exterior', 
+            'Neumáticos y Suspensión',
+            'Frenos y Seguridad',
+            'Motor y Mecánica',
+            'Inspección Interior',
+            'Observaciones Finales',
+            'Finalizar Inspección'
+        ];
+
+        function startInspectionTimer() {
+            if (!inspectionStartTime) {
+                inspectionStartTime = new Date();
+                timerInterval = setInterval(updateTimer, 1000);
+            }
+        }
+
+        function updateTimer() {
+            if (!inspectionStartTime) return;
+            
+            const now = new Date();
+            const elapsed = Math.floor((now - inspectionStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            
+            const timerDisplay = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('inspectionTimer').textContent = timerDisplay;
+            
+            // Update efficiency status
+            const efficiencyStatus = document.getElementById('efficiencyStatus');
+            if (minutes < 30) {
+                efficiencyStatus.textContent = 'Excelente tiempo';
+                efficiencyStatus.className = 'text-sm font-medium text-green-200';
+            } else if (minutes < 45) {
+                efficiencyStatus.textContent = 'En tiempo';
+                efficiencyStatus.className = 'text-sm font-medium text-yellow-200';
+            } else {
+                efficiencyStatus.textContent = 'Atrasado';
+                efficiencyStatus.className = 'text-sm font-medium text-red-200';
+            }
+        }
+
+        function updateProgress() {
+            const percentage = Math.round((currentStep / totalSteps) * 100);
+            document.getElementById('progressPercentage').textContent = `${percentage}%`;
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+            document.getElementById('currentStepNumber').textContent = currentStep;
+            document.getElementById('currentStepName').textContent = stepNames[currentStep - 1];
+        }
+
+        function showStep(stepNumber) {
+            // Hide all steps
+            document.querySelectorAll('.inspection-step').forEach(step => {
+                step.classList.add('hidden');
+                step.classList.remove('active');
+            });
+            
+            // Show current step
+            const currentStepElement = document.querySelector(`[data-step="${stepNumber}"]`);
+            if (currentStepElement) {
+                currentStepElement.classList.remove('hidden');
+                currentStepElement.classList.add('active');
+            }
+            
+            // Update navigation buttons
+            const prevButton = document.getElementById('prevButton');
+            const nextButton = document.getElementById('nextButton');
+            const finishButton = document.getElementById('finishButton');
+            
+            prevButton.disabled = stepNumber === 1;
+            prevButton.classList.toggle('opacity-50', stepNumber === 1);
+            prevButton.classList.toggle('cursor-not-allowed', stepNumber === 1);
+            
+            if (stepNumber === totalSteps) {
+                nextButton.classList.add('hidden');
+                finishButton.classList.remove('hidden');
+            } else {
+                nextButton.classList.remove('hidden');
+                finishButton.classList.add('hidden');
+            }
+            
+            updateProgress();
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                // Validate current step before proceeding
+                if (validateCurrentStep()) {
+                    currentStep++;
+                    showStep(currentStep);
+                    
+                    // Smooth scroll to top
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+                
+                // Smooth scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function validateCurrentStep() {
+            const currentStepElement = document.querySelector(`[data-step="${currentStep}"]`);
+            const requiredFields = currentStepElement.querySelectorAll('[required]');
+            
+            for (let field of requiredFields) {
+                if (!field.value.trim()) {
+                    field.focus();
+                    field.classList.add('border-red-500', 'ring-red-500');
+                    
+                    // Remove error styling after user starts typing
+                    field.addEventListener('input', function() {
+                        this.classList.remove('border-red-500', 'ring-red-500');
+                    }, { once: true });
+                    
+                    showValidationMessage('Por favor complete todos los campos obligatorios');
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function showValidationMessage(message) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full mx-4">
+                    <div class="p-6 text-center">
+                        <div class="mb-4">
+                            <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Campo Requerido</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">${message}</p>
+                        <button onclick="this.closest('.fixed').remove()" class="bg-blau-accent text-white py-2 px-6 rounded-lg hover:bg-blue-600 transition-colors">
+                            Entendido
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function finishInspection() {
+            if (validateCurrentStep()) {
+                // Stop timer
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                }
+                
+                // Update final summary
+                const totalTime = document.getElementById('inspectionTimer').textContent;
+                document.getElementById('totalTime').textContent = totalTime;
+                
+                // Calculate final efficiency
+                const minutes = parseInt(totalTime.split(':')[0]);
+                let efficiency = 'Excelente';
+                if (minutes > 45) efficiency = 'Mejorable';
+                else if (minutes > 30) efficiency = 'Bueno';
+                
+                document.getElementById('finalEfficiency').textContent = efficiency;
+                
+                // Simulate form submission
+                setTimeout(() => {
+                    showSuccessMessage('¡Inspección completada exitosamente! Los datos han sido enviados al sistema IoT.');
+                }, 1000);
+            }
+        }
+
+        function saveDraft() {
+            showSuccessMessage('Borrador guardado correctamente. Puede continuar más tarde.');
+        }
+
+        // Camera functionality
+        let currentStream = null;
+        let photoCount = {};
+
+        function openCamera(button, photoId) {
+            // Create camera modal
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full mx-4">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Tomar Fotografía</h3>
+                            <button onclick="closeCamera()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div id="cameraContainer" class="relative">
+                                <video id="cameraPreview" class="w-full h-64 bg-gray-900 rounded-lg camera-preview" autoplay playsinline></video>
+                                <div id="cameraError" class="hidden w-full h-64 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400">
+                                    <div class="text-center">
+                                        <i class="fas fa-camera-slash text-4xl mb-2"></i>
+                                        <p>Cámara no disponible</p>
+                                        <p class="text-sm">Use el botón para seleccionar archivo</p>
+                                    </div>
+                                </div>
+                                <canvas id="photoCanvas" class="hidden"></canvas>
+                            </div>
+                            
+                            <div class="flex space-x-3">
+                                <button id="captureBtn" class="flex-1 bg-blau-accent text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors">
+                                    <i class="fas fa-camera mr-2"></i>Capturar
+                                </button>
+                                <button id="fileBtn" class="flex-1 bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors">
+                                    <i class="fas fa-folder mr-2"></i>Archivo
+                                </button>
+                            </div>
+                            
+                            <input type="file" id="fileInput" accept="image/*" class="hidden">
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Initialize camera
+            initCamera(photoId);
+        }
+
+        async function initCamera(photoId) {
+            const video = document.getElementById('cameraPreview');
+            const errorDiv = document.getElementById('cameraError');
+            const captureBtn = document.getElementById('captureBtn');
+            const fileBtn = document.getElementById('fileBtn');
+            const fileInput = document.getElementById('fileInput');
+            
+            try {
+                // Try to access camera
+                currentStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',  // Use back camera if available
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
+                });
+                video.srcObject = currentStream;
+                
+                captureBtn.onclick = () => capturePhoto(photoId);
+            } catch (error) {
+                console.log('Camera access denied or unavailable:', error);
+                video.classList.add('hidden');
+                errorDiv.classList.remove('hidden');
+                captureBtn.disabled = true;
+                captureBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            
+            // File input functionality
+            fileBtn.onclick = () => fileInput.click();
+            fileInput.onchange = (e) => {
+                if (e.target.files[0]) {
+                    processImageFile(e.target.files[0], photoId);
+                }
+            };
+        }
+
+        function capturePhoto(photoId) {
+            const video = document.getElementById('cameraPreview');
+            const canvas = document.getElementById('photoCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw video frame to canvas
+            ctx.drawImage(video, 0, 0);
+            
+            // Convert to blob and save
+            canvas.toBlob((blob) => {
+                const file = new File([blob], `inspection_${photoId}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                addPhotoToGallery(file, photoId);
+                closeCamera();
+            }, 'image/jpeg', 0.8);
+        }
+
+        function processImageFile(file, photoId) {
+            addPhotoToGallery(file, photoId);
+            closeCamera();
+        }
+
+        function addPhotoToGallery(file, photoId) {
+            if (!photoCount[photoId]) photoCount[photoId] = 0;
+            photoCount[photoId]++;
+            
+            const gallery = document.getElementById(`photos-${photoId}`);
+            if (!gallery) {
+                // Create gallery if it doesn't exist
+                const photoSection = document.querySelector(`[onclick*="${photoId}"]`).closest('.photo-section');
+                const newGallery = document.createElement('div');
+                newGallery.className = 'photo-gallery mt-3';
+                newGallery.innerHTML = `<div class="grid grid-cols-3 gap-2" id="photos-${photoId}"></div>`;
+                photoSection.appendChild(newGallery);
+            }
+            
+            const photoGallery = document.getElementById(`photos-${photoId}`);
+            const galleryContainer = photoGallery.closest('.photo-gallery');
+            
+            // Show gallery
+            galleryContainer.classList.remove('hidden');
+            
+            // Create photo thumbnail
+            const photoDiv = document.createElement('div');
+            photoDiv.className = 'relative';
+            photoDiv.innerHTML = `
+                <img src="${URL.createObjectURL(file)}" class="photo-thumbnail" alt="Foto ${photoCount[photoId]}">
+                <button onclick="removePhoto(this, '${photoId}')" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs p-1 rounded-b">
+                    Foto ${photoCount[photoId]}
+                </div>
+            `;
+            
+            photoGallery.appendChild(photoDiv);
+            
+            // Update button text
+            const button = document.querySelector(`[onclick*="${photoId}"]`);
+            button.innerHTML = `<i class="fas fa-camera mr-2"></i>Agregar Foto (${photoCount[photoId]})`;
+        }
+
+        function removePhoto(button, photoId) {
+            const photoDiv = button.closest('div.relative');
+            photoDiv.remove();
+            photoCount[photoId]--;
+            
+            // Update photo numbers
+            const gallery = document.getElementById(`photos-${photoId}`);
+            const photos = gallery.querySelectorAll('.relative');
+            photos.forEach((photo, index) => {
+                const label = photo.querySelector('.absolute.bottom-0');
+                label.textContent = `Foto ${index + 1}`;
+            });
+            
+            // Update button text
+            const photoButton = document.querySelector(`[onclick*="${photoId}"]`);
+            if (photoCount[photoId] === 0) {
+                photoButton.innerHTML = `<i class="fas fa-camera mr-2"></i>Tomar Foto`;
+                gallery.closest('.photo-gallery').classList.add('hidden');
+            } else {
+                photoButton.innerHTML = `<i class="fas fa-camera mr-2"></i>Agregar Foto (${photoCount[photoId]})`;
+            }
+        }
+
+        function closeCamera() {
+            // Stop camera stream
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            
+            // Remove modal
+            const modal = document.querySelector('.fixed.inset-0.bg-black');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // Telematics functionality
+        function toggleTelematics(sectionId) {
+            const section = document.getElementById(sectionId);
+            const chevron = document.getElementById(sectionId + '-chevron');
+            
+            if (section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+            } else {
+                section.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab buttons
+            document.getElementById('scheduleTab').addEventListener('click', () => showTab('scheduleTab', 'scheduleView'));
+            document.getElementById('inspectionTab').addEventListener('click', () => {
+                showTab('inspectionTab', 'inspectionView');
+                startInspectionTimer();
+            });
+            document.getElementById('workshopsTab').addEventListener('click', () => showTab('workshopsTab', 'workshopsView'));
+
+            // Form submissions
+            document.getElementById('appointmentForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                handleAppointmentSubmit();
+            });
+
+            // Inspection navigation
+            document.getElementById('nextButton').addEventListener('click', nextStep);
+            document.getElementById('prevButton').addEventListener('click', prevStep);
+            document.getElementById('finishButton').addEventListener('click', finishInspection);
+            document.getElementById('saveButton').addEventListener('click', saveDraft);
+
+            // Workshop card clicks
+            document.querySelectorAll('.workshop-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const workshopName = this.querySelector('h3').textContent;
+                    showWorkshopDetails(workshopName);
+                });
+            });
+
+            // Initialize inspection wizard
+            showStep(1);
+            updateProgress();
+
+            // Generate initial calendar
+            generateCalendar();
+        });
+
+        function showUnitDetails(unitCode) {
+            // Create custom modal for unit details
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full mx-4">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Detalles de ${unitCode}</h3>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Estado:</span>
+                                <span class="text-green-600 font-medium">Programado</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Tipo de servicio:</span>
+                                <span class="text-gray-900 dark:text-white">Mantenimiento preventivo</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Taller asignado:</span>
+                                <span class="text-gray-900 dark:text-white">Norte CDMX</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Duración estimada:</span>
+                                <span class="text-gray-900 dark:text-white">2 horas</span>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex space-x-3">
+                            <button class="flex-1 bg-blau-accent text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
+                                Editar
+                            </button>
+                            <button onclick="this.closest('.fixed').remove()" class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function showWorkshopDetails(workshopName) {
+            // Create custom modal for workshop details
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full mx-4">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${workshopName}</h3>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Capacidad máxima:</span>
+                                <span class="text-gray-900 dark:text-white">8 unidades</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Horario:</span>
+                                <span class="text-gray-900 dark:text-white">24/7</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Teléfono:</span>
+                                <span class="text-gray-900 dark:text-white">+52 55 1234 5678</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Supervisor:</span>
+                                <span class="text-gray-900 dark:text-white">María González</span>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex space-x-3">
+                            <button class="flex-1 bg-blau-accent text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
+                                Contactar
+                            </button>
+                            <button onclick="this.closest('.fixed').remove()" class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Queue Management Functions
+        function continueInspection(unitCode) {
+            // Hide queue and show inspection wizard
+            document.getElementById('inspectionQueue').style.display = 'none';
+            document.getElementById('inspectionHeader').classList.remove('hidden');
+            
+            // Update unit data in the form
+            const unitInput = document.querySelector('input[value="ADO-001"]');
+            if (unitInput) {
+                unitInput.value = unitCode;
+            }
+            
+            // Show success message
+            showSuccessMessage(`Continuando inspección de unidad ${unitCode}`);
+            
+            // Start or resume the timer
+            startInspectionTimer();
+        }
+
+        function startInspection(unitCode) {
+            // Hide queue and show inspection wizard
+            document.getElementById('inspectionQueue').style.display = 'none';
+            document.getElementById('inspectionHeader').classList.remove('hidden');
+            
+            // Update unit data in the form
+            const unitInput = document.querySelector('input[value="ADO-001"]');
+            if (unitInput) {
+                unitInput.value = unitCode;
+            }
+            
+            // Reset inspection to step 1
+            currentStep = 1;
+            showStep(currentStep);
+            
+            // Reset timer
+            inspectionStartTime = null;
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            
+            // Show success message
+            showSuccessMessage(`Iniciando inspección de unidad ${unitCode}`);
+            
+            // Start the timer
+            startInspectionTimer();
+        }
+
+        function sortQueue(criteria) {
+            const queueList = document.getElementById('queueList');
+            const queueItems = Array.from(queueList.querySelectorAll('.queue-item'));
+            
+            // Keep the first item (current inspection) in place
+            const currentItem = queueItems[0];
+            const itemsToSort = queueItems.slice(1);
+            
+            if (criteria === 'priority') {
+                itemsToSort.sort((a, b) => {
+                    const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+                    const aPriority = priorityOrder[a.dataset.priority] || 0;
+                    const bPriority = priorityOrder[b.dataset.priority] || 0;
+                    return bPriority - aPriority;
+                });
+            } else if (criteria === 'time') {
+                itemsToSort.sort((a, b) => {
+                    const aUnit = a.dataset.unit;
+                    const bUnit = b.dataset.unit;
+                    return aUnit.localeCompare(bUnit);
+                });
+            }
+            
+            // Clear and rebuild the queue
+            queueList.innerHTML = '';
+            queueList.appendChild(currentItem);
+            
+            // Update queue numbers and re-add items
+            itemsToSort.forEach((item, index) => {
+                const numberCircle = item.querySelector('.rounded-full');
+                numberCircle.textContent = index + 1;
+                queueList.appendChild(item);
+            });
+            
+            showSuccessMessage(`Cola ordenada por ${criteria === 'priority' ? 'prioridad' : 'horario'}`);
+        }
+
+        function refreshQueue() {
+            // Simulate refreshing queue data
+            const completedCount = document.querySelector('.bg-green-100').parentElement.nextElementSibling.querySelector('.text-2xl');
+            const newCompleted = parseInt(completedCount.textContent) + Math.floor(Math.random() * 2);
+            completedCount.textContent = newCompleted;
+            
+            // Update time estimates
+            const timeEstimate = document.querySelector('.bg-yellow-100').parentElement.nextElementSibling.querySelector('.text-2xl');
+            const currentHours = parseInt(timeEstimate.textContent);
+            timeEstimate.textContent = Math.max(1, currentHours - Math.floor(Math.random() * 2)) + 'h';
+            
+            showSuccessMessage('Cola actualizada correctamente');
+        }
+
+        function exportQueue() {
+            // Simulate exporting queue data
+            const queueData = {
+                date: new Date().toLocaleDateString(),
+                totalUnits: 8,
+                completed: 3,
+                estimatedTime: '6h',
+                units: [
+                    { unit: 'ADO-001', status: 'En progreso', priority: 'Alta' },
+                    { unit: 'ADO-156', status: 'En cola', priority: 'Alta' },
+                    { unit: 'ADO-223', status: 'En cola', priority: 'Media' },
+                    // ... more units
+                ]
+            };
+            
+            // Create a blob with CSV data
+            const csvContent = `Unidad,Estado,Prioridad,Estimado\n${queueData.units.map(u => `${u.unit},${u.status},${u.priority},45min`).join('\n')}`;
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            
+            // Create download link
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `cola_inspeccion_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showSuccessMessage('Lista exportada correctamente');
+        }
+
+        function addToQueue() {
+            // Create modal for adding new unit to queue
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full mx-4">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Agregar Unidad a Cola</h3>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Número de Unidad</label>
+                                <input type="text" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent text-base" placeholder="ADO-xxx">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Prioridad</label>
+                                <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent text-base">
+                                    <option value="high">Alta - Falla crítica</option>
+                                    <option value="medium">Media - Mantenimiento preventivo</option>
+                                    <option value="low">Baja - Inspección rutinaria</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo de inspección</label>
+                                <select class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blau-accent text-base">
+                                    <option>Mantenimiento preventivo</option>
+                                    <option>Revisión programada</option>
+                                    <option>Falla reportada</option>
+                                    <option>Inspección rutinaria</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex space-x-3">
+                            <button onclick="this.closest('.fixed').remove(); showSuccessMessage('Unidad agregada a la cola correctamente');" class="flex-1 bg-blau-accent text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
+                                Agregar
+                            </button>
+                            <button onclick="this.closest('.fixed').remove()" class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+    </script>
+</body>
+</html>
